@@ -28,7 +28,10 @@ spec:
           image: postgres:15
           env:
             - name: POSTGRES_PASSWORD
-              value: "supersecretpassword"
+              valueFrom: 
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
           ports:
             - containerPort: 5432
           volumeMounts:
