@@ -1,14 +1,20 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { idParamSchema } from "@arena/core";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  enterGameSchema,
+  idParamSchema,
+  leaderboardQuerySchema,
+} from "@arena/core";
 import {
   db,
+  entries,
   gameParticipants,
   games,
   rankingEntries,
   rankings,
   rounds,
+  seasons,
   user,
 } from "@arena/db";
 import { requireAuth } from "../middleware/auth";
@@ -105,19 +111,39 @@ gamesRoute.delete(
   },
 );
 
-/** Latest leaderboard snapshot for a game. */
+/** Latest leaderboard snapshot for a game (scope: alltime | season). */
 gamesRoute.get(
   "/:id/leaderboard",
   zValidator("param", idParamSchema),
+  zValidator("query", leaderboardQuerySchema),
   async (c) => {
     const { id: gameId } = c.req.valid("param");
+    const { scope } = c.req.valid("query");
+    let { seasonId } = c.req.valid("query");
+
+    if (scope === "season" && !seasonId) {
+      const [active] = await db
+        .select()
+        .from(seasons)
+        .where(eq(seasons.isActive, true))
+        .limit(1);
+      seasonId = active?.id;
+    }
+
     const [latest] = await db
       .select()
       .from(rankings)
-      .where(eq(rankings.gameId, gameId))
+      .where(
+        and(
+          eq(rankings.gameId, gameId),
+          scope === "season" && seasonId
+            ? eq(rankings.seasonId, seasonId)
+            : isNull(rankings.seasonId),
+        ),
+      )
       .orderBy(desc(rankings.capturedAt))
       .limit(1);
-    if (!latest) return c.json({ ranking: null, entries: [] });
+    if (!latest) return c.json({ ranking: null, entries: [], scope });
     const entries = await db
       .select({
         userId: rankingEntries.userId,
@@ -130,7 +156,7 @@ gamesRoute.get(
       .innerJoin(user, eq(user.id, rankingEntries.userId))
       .where(eq(rankingEntries.rankingId, latest.id))
       .orderBy(rankingEntries.rankPosition);
-    return c.json({ ranking: latest, entries });
+    return c.json({ ranking: latest, entries, scope });
   },
 );
 
@@ -146,6 +172,37 @@ gamesRoute.get(
       .where(eq(rounds.gameId, gameId))
       .orderBy(desc(rounds.roundNumber));
     return c.json({ rounds: rows });
+  },
+);
+
+/** Enter the next round. Ensures enrollment, then queues a pending entry. */
+gamesRoute.post(
+  "/:id/enter",
+  requireAuth,
+  zValidator("param", idParamSchema),
+  zValidator("json", enterGameSchema),
+  async (c) => {
+    const { id: gameId } = c.req.valid("param");
+    const { source } = c.req.valid("json");
+    const current = c.get("user")!;
+
+    const [game] = await db
+      .select({ id: games.id })
+      .from(games)
+      .where(eq(games.id, gameId));
+    if (!game) return c.json({ error: "Game not found" }, 404);
+
+    // Ensure the player is enrolled, then queue the entry.
+    await db
+      .insert(gameParticipants)
+      .values({ gameId, userId: current.id })
+      .onConflictDoNothing();
+    await db
+      .insert(entries)
+      .values({ gameId, userId: current.id, source, status: "pending" })
+      .onConflictDoNothing();
+
+    return c.json({ entered: true, source });
   },
 );
 
