@@ -82,3 +82,86 @@ export type LeaderboardEntry = {
   currentPoints: number;
   rankPosition: number;
 };
+
+// ─── Phase 2 ─────────────────────────────────────────────────────────────────
+export type GlobalEntry = {
+  rank: number;
+  userId: string;
+  name: string;
+  image: string | null;
+  points: number;
+  division: string;
+};
+
+export type Stats = {
+  roundsPlayed: number;
+  wins: number;
+  podiums: number;
+  bestFinish: number | null;
+  totalPoints: number;
+  seasonPoints: number;
+  division: string;
+  season: { id: string; name: string } | null;
+};
+
+export type RankInfo = {
+  rank: number;
+  points: number;
+  totalPlayers: number;
+  percentile: number;
+} | null;
+
+export type MyResult = {
+  roundId: string;
+  roundNumber: number;
+  gameName: string;
+  gameSlug: string;
+  placement: number | null;
+  totalParticipants: number;
+  pointsEarned: number;
+  survivedSeconds: number;
+  eliminatedAtSeconds: number | null;
+  highlightClipUrl: string | null;
+  playedAt: string | null;
+};
+
+export type Achievement = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  icon: string;
+  earned: boolean;
+  earnedAt: string | null;
+};
+
+export type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  read: boolean;
+  roundId: string | null;
+  createdAt: string;
+};
+
+export type Cosmetic = {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  rarity: string;
+  value: string;
+  clubOnly: boolean;
+  owned: boolean;
+  equipped: boolean;
+};
+
+export type Division = {
+  tier: string;
+  name: string;
+  minPoints: number;
+  playerCount: number;
+};
+
+export const API_BASE = BASE;
