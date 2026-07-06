@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   apiFetch,
@@ -8,11 +9,15 @@ import {
 } from "../lib/api";
 import { useSession } from "../lib/auth-client";
 
+type Scope = "alltime" | "season";
+
 export function GameDetail() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
+
+  const [scope, setScope] = useState<Scope>("alltime");
 
   const detail = useQuery({
     queryKey: ["game", slug],
@@ -22,12 +27,36 @@ export function GameDetail() {
   const gameId = detail.data?.game.id;
 
   const leaderboard = useQuery({
-    queryKey: ["leaderboard", gameId],
+    queryKey: ["leaderboard", gameId, scope],
     enabled: Boolean(gameId),
     queryFn: () =>
       apiFetch<{ entries: LeaderboardEntry[] }>(
-        `/games/${gameId}/leaderboard`,
+        `/games/${gameId}/leaderboard?scope=${scope}`,
       ),
+  });
+
+  function refetchAll() {
+    queryClient.invalidateQueries({ queryKey: ["game", slug] });
+    queryClient.invalidateQueries({ queryKey: ["leaderboard", gameId] });
+    queryClient.invalidateQueries({ queryKey: ["rounds", gameId] });
+  }
+
+  const enter = useMutation({
+    mutationFn: () =>
+      apiFetch(`/games/${gameId}/enter`, {
+        method: "POST",
+        body: JSON.stringify({ source: "site" }),
+      }),
+  });
+
+  // MOCK: trigger the round engine so the loop is observable without the video job.
+  const simulate = useMutation({
+    mutationFn: () =>
+      apiFetch(`/admin/simulate-round`, {
+        method: "POST",
+        body: JSON.stringify({ gameId }),
+      }),
+    onSuccess: refetchAll,
   });
 
   const rounds = useQuery({
@@ -65,23 +94,40 @@ export function GameDetail() {
         <p className="mt-2 text-slate-400">{game.description}</p>
         <p className="mt-1 text-sm text-slate-500">{participantCount} players</p>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {session ? (
-            <button
-              onClick={() => toggleJoin.mutate(joined)}
-              disabled={toggleJoin.isPending}
-              className={`rounded-lg px-5 py-2 font-medium disabled:opacity-50 ${
-                joined
-                  ? "border border-slate-700 hover:bg-slate-800"
-                  : "bg-indigo-600 hover:bg-indigo-500"
-              }`}
-            >
-              {toggleJoin.isPending
-                ? "…"
-                : joined
-                  ? "Leave game"
-                  : "Join game"}
-            </button>
+            <>
+              <button
+                onClick={() => toggleJoin.mutate(joined)}
+                disabled={toggleJoin.isPending}
+                className={`rounded-lg px-5 py-2 font-medium disabled:opacity-50 ${
+                  joined
+                    ? "border border-slate-700 hover:bg-slate-800"
+                    : "bg-indigo-600 hover:bg-indigo-500"
+                }`}
+              >
+                {toggleJoin.isPending ? "…" : joined ? "Leave game" : "Join game"}
+              </button>
+              <button
+                onClick={() => enter.mutate()}
+                disabled={enter.isPending}
+                className="rounded-lg border border-emerald-600/60 px-5 py-2 font-medium text-emerald-300 hover:bg-emerald-600/10 disabled:opacity-50"
+              >
+                {enter.isPending
+                  ? "…"
+                  : enter.isSuccess
+                    ? "✓ Entered next round"
+                    : "Enter next round"}
+              </button>
+              <button
+                onClick={() => simulate.mutate()}
+                disabled={simulate.isPending}
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50"
+                title="Mock: runs the round engine now (stands in for the video job)"
+              >
+                {simulate.isPending ? "Running…" : "⚙️ Simulate round (demo)"}
+              </button>
+            </>
           ) : (
             <button
               onClick={() => navigate("/login")}
@@ -94,7 +140,22 @@ export function GameDetail() {
       </div>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Leaderboard</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Leaderboard</h2>
+          <div className="flex rounded-lg border border-slate-800 p-0.5 text-xs">
+            {(["alltime", "season"] as Scope[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScope(s)}
+                className={`rounded-md px-2 py-1 ${
+                  scope === s ? "bg-indigo-600 text-white" : "text-slate-400"
+                }`}
+              >
+                {s === "alltime" ? "All-time" : "Season"}
+              </button>
+            ))}
+          </div>
+        </div>
         {leaderboard.data && leaderboard.data.entries.length > 0 ? (
           <ol className="space-y-1">
             {leaderboard.data.entries.map((e) => (
