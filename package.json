@@ -1,0 +1,26 @@
+{
+  "name": "arena",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "db:generate": "pnpm --filter @arena/db generate",
+    "db:migrate": "pnpm --filter @arena/db migrate",
+    "db:push": "pnpm --filter @arena/db push",
+    "db:seed": "pnpm --filter @arena/db seed",
+    "db:studio": "pnpm --filter @arena/db studio",
+    "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:infra:down": "docker compose -f docker-compose.dev.yml down"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}
