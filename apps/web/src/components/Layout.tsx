@@ -1,10 +1,18 @@
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 import { signOut, useSession } from "../lib/auth-client";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { data } = useSession();
   const navigate = useNavigate();
+
+  const notifs = useQuery({
+    queryKey: ["notifications"],
+    enabled: Boolean(data),
+    queryFn: () => apiFetch<{ unreadCount: number }>("/me/notifications"),
+  });
 
   async function handleSignOut() {
     await signOut();
@@ -22,8 +30,26 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link to="/games" className="text-slate-300 hover:text-white">
               Games
             </Link>
+            <Link to="/leaderboards" className="text-slate-300 hover:text-white">
+              Leaderboard
+            </Link>
             {data ? (
               <>
+                <Link to="/results" className="text-slate-300 hover:text-white">
+                  Results
+                </Link>
+                <Link
+                  to="/notifications"
+                  className="relative text-slate-300 hover:text-white"
+                  aria-label="Notifications"
+                >
+                  🔔
+                  {notifs.data && notifs.data.unreadCount > 0 && (
+                    <span className="absolute -right-2 -top-2 rounded-full bg-rose-500 px-1.5 text-[10px] font-bold">
+                      {notifs.data.unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   to="/profile"
                   className="text-slate-300 hover:text-white"
