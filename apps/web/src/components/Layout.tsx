@@ -38,6 +38,9 @@ export function Layout({ children }: { children: ReactNode }) {
                 <Link to="/results" className="text-slate-300 hover:text-white">
                   Results
                 </Link>
+                <Link to="/studio" className="text-slate-300 hover:text-white">
+                  Studio
+                </Link>
                 <Link
                   to="/notifications"
                   className="relative text-slate-300 hover:text-white"

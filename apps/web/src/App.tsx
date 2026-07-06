@@ -11,6 +11,7 @@ import { MyResults } from "./pages/MyResults";
 import { Notifications } from "./pages/Notifications";
 import { Profile } from "./pages/Profile";
 import { RoundDetail } from "./pages/RoundDetail";
+import { Studio } from "./pages/Studio";
 
 function Protected({ children }: { children: JSX.Element }) {
   const { data, isPending } = useSession();
@@ -50,6 +51,14 @@ export function App() {
           element={
             <Protected>
               <Club />
+            </Protected>
+          }
+        />
+        <Route
+          path="/studio"
+          element={
+            <Protected>
+              <Studio />
             </Protected>
           }
         />
